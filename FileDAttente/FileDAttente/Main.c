@@ -1,137 +1,97 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#define SMIN 4
-#define SMAX 30
-#define TEMPSSIMULATION 640
-#define MAXTAB 80000
-#define CUOCC 35
-#define CUINOCC 20
-#define CUPRIORABSOLU 40
-#define CUPRIORORD 25
-#define M pow(2,sizeof(unsigned int)*8)
-#define A 17
-#define C 53
-
-
-void initFilesEtStations(void);
-int genererArrivees(void);
-int genererDS(void);
-void trierFiles(int tab[]);
-void gestionCoupUnitaire(void);
-void calculCout(void);
-void parcourirFiles(int iStations, int iFiles);
-void VerifEjectionClient(int iStations);
-
-enum TypeClient { PRIOR = 1, ORDINAIRE = 2, VIDE = 3 };
-typedef struct stations Stations;
-struct stations {
-	int typeClient;
-	int dureeService;
-	int tempsOccupation;
-	int tempsInoccupation;
-};
+#include "Header.h"
 
 int TabPrior[MAXTAB];
 int TabOrdinaire[MAXTAB];
 int TabOrdinaireEjecte[MAXTAB];
 Stations TabStations[MAXTAB];
-int TabCouts[2];
+int TabCouts[26];
 
 unsigned int x0 = 123456789;
 int nbPrior = 0;
 int nbNormal = 0;
+int tempsOccupPrior, tempsOccupOrd;
 
 void main(void) {
-	/*int  s, temps, tempsOccupPrior, tempsOccupOrd, nbArrivees, iArrivee, iStations, iFiles;
-	unsigned int DS = 0;
-	unsigned int typeClient = VIDE;
+	printf("********************DEBUT**********************\n");
+	int  s, temps, nbArrivees, iArrivee, iStations;
+	int DS = 0;
 
-	for (int y = 0; y < 20; y++) {
-		nbArrivees = genererArrivees();
-		printf("Nb arrivées : %d\n", nbArrivees);
-		for (int i = 0; i < nbArrivees; i++) {
-			DS = genererDS();
-			printf("\tDS : %d\n", DS);
-			typeClient = genererTypeClient();
-			printf("\tTypeClient : %d\n", typeClient);
-			x0 = (A * x0 + C);
-		}
+	for (int i = 0; i < 26; i++) {
+		TabCouts[i] = 0;
 	}
-	printf("pourc de prior : %.2f pour un total d'arrivee de %d", ((double)nbPrior / (nbNormal + nbPrior)) * 100, (nbNormal + nbPrior));
-	system("pause");*/
-	
-	int  s, temps, tempsOccupPrior, tempsOccupOrd, nbArrivees, iArrivee, iStations, iFiles;
-	unsigned int DS = 0;
-	TabCouts[0] = 0;
-	TabCouts[1] = 0;
-
+	int iCout = 0;
 	s = SMIN;
 	while (s < SMAX) {
 
-		void initFilesEtStations();
+		initFilesEtStations();
 		temps = tempsOccupPrior = tempsOccupOrd = 0;
 		int iO = 0, iP = 0;
 
 		while (temps < TEMPSSIMULATION) {
 
 			nbArrivees = genererArrivees();
-			//printf("Nb arrivées : %d\n", nbArrivees);
+			if (s == 4 || s == 5 && temps <= 30) {
+				printf("Nb arrivées : %d\n", nbArrivees);
+			}
 			for (int iArrivees = 0; iArrivees < nbArrivees; iArrivees++) {
 				DS = genererDS();
-				//printf("\tDS : %d\n", DS);
+				printf("\tDS : %d\n", DS);
 				double u_n = x0 / M;
 				if (u_n < 0.2) {
 					TabPrior[iP] = DS;
+					printf("\tTypeClient : %d\n", PRIOR);
 					iP++;
 					nbPrior++;
 				}
 				else {
 					TabOrdinaire[iO] = DS;
+					printf("\tTypeClient : %d\n", ORDINAIRE);
 					iO++;
 					nbNormal++;
 				}
-				//printf("\tTypeClient : %d\n", typeClient);
 				x0 = (A * x0 + C);
 			}
 			//printf("pourc de prior : %.2f pour un total d'arrivee de %d", ((double)nbPrior / (nbNormal + nbPrior)) * 100, (nbNormal + nbPrior));
 			
-			trierTab(TabOrdinaire);
-			trierTab(TabPrior);
-			trierTab(TabOrdinaireEjecte);
+			trierFiles(TabOrdinaire);
+			trierFiles(TabPrior);
+			trierFiles(TabOrdinaireEjecte);
+
+			affichageFilesPrior();
+			affichageFilesOrdinaireEject();
+			affichageFilesOrdinaire();
+
 			iStations = 0;
-			iFiles = 0;
-			trierTab(TabStations);
-			int iPrior = 0;
-			int iOrd = 0;
-			int iOrdEj = 0;
+			
 			while (iStations < s) {
 				if (TabStations[iStations].typeClient == VIDE) {
-					//parcourirFiles(iStations, iFiles);
-					parcourirFiles(iStations, iPrior, iOrd, iOrdEj);
+					parcourirFiles(iStations);
 				}
-				else {
+				/*else {
 					VerifEjectionClient(iStations);
-				}
-				iFiles++;
-				//*****************			Ajouter un module pour parcourir le tableau des stations et diminuer le DS de chacun
-				ParcoursTabStations(s, TabStations);
+				}*/
+				
 				iStations++;
 			}
-			gestionCoupUnitaire(tempsOccupPrior, tempsOccupOrd, TabCouts);
+			trierTabStations(s);
+			affichageStations(s);
+			ParcoursTabStations(s);
+			/*gestionCoupUnitaire();*/
 			temps++;
 		}
-		calculCout(iStations);
+		/*calculCout(iStations, iCout);
+		iCout++;*/
 		s++;
 	}
+	system("pause");
 }
 
 void initFilesEtStations(void) {
 	int i;
 	for (i = 0; i < MAXTAB; i++) {
-		TabOrdinaire[i] = 0;
-		TabOrdinaireEjecte[i] = 0;
-		TabPrior[i] = 0;
+		TabOrdinaire[i] = 10;
+		TabOrdinaireEjecte[i] = 10;
+		TabPrior[i] = 10;
 		TabStations[i].dureeService = 0;
 		TabStations[i].typeClient = VIDE;
 		TabStations[i].tempsOccupation = 0;
@@ -141,10 +101,10 @@ void initFilesEtStations(void) {
 
 int genererArrivees(void) {
 	x0 = (A * x0 + C);
-	printf("m : %f\n", M);
-	printf("X0 : %u\n", x0);
+	//printf("m : %f\n", M);
+	//printf("X0 : %u\n", x0);
 	double u_n = (double)x0 / M;
-	printf("U_n : %lf\n", u_n);
+	//printf("U_n : %lf\n", u_n);
 	if (u_n < 0.09) {
 		return 0;
 	} 
@@ -204,13 +164,13 @@ int genererDS(void) {
 	}
 }
 
-void trierTab(int tab[]) {
+void trierFiles(int tab[]) {
 	int i = 0;
 	int tmp = 0;
 	int j = 0;
 
-	for (i = 0; i < sizeof(tab); i++) {
-		for (j = i + 1; j < sizeof(tab); j++) {                  
+	for (i = 0; i < MAXTAB; i++) {
+		for (j = i + 1; j < MAXTAB; j++) {                  
 			if (tab[j] < tab[i]) {
 				tmp = tab[i];
 				tab[i] = tab[j];
@@ -220,36 +180,49 @@ void trierTab(int tab[]) {
 	}
 }
 
-void gestionCoupUnitaire(int tempsOccupPrior, int tempsOccupOrd, int Tab[]) {
-	//***************************************	Ajouter le tableau des couts mais aussi faire le PP qui n'est pas encore fait
+void trierTabStations(int s) {
+	int i = 0;
+	Stations tmp;
+	int j = 0;
+
+	for (i = 0; i < s; i++) {
+		for (j = i + 1; j < s; j++) {
+			if (TabStations[j].typeClient > TabStations[i].typeClient) {
+				tmp = TabStations[i];
+				TabStations[i] = TabStations[j];
+				TabStations[j] = tmp;
+			}
+		}
+	}
+}
+
+void gestionCoupUnitaire() {
+
 	int iP = 0;
 	int iOrd = 0;
 
-	while (TabPrior[iP] != 0)
+	while (TabPrior[iP] != 10)
 	{
 		tempsOccupPrior++;
 		iP++;
 	}
 
-	while (TabOrdinaire[iOrd] != 0)
+	while (TabOrdinaire[iOrd] != 10)
 	{
 		tempsOccupOrd++;
 		iOrd++;
 	}
 
 	iOrd = 0;
-	while (TabOrdinaireEjecte[iOrd] != 0)
+	while (TabOrdinaireEjecte[iOrd] != 10)
 	{
 		tempsOccupOrd++;
 		iOrd++;
 	}
-
-	TabCouts[0] += tempsOccupPrior;
-	TabCouts[1] += tempsOccupOrd;
 }
 
-void calculCout(int s) {
-	int couts = ((TabCouts[0] % 60) * CUPRIORABSOLU) + ((TabCouts[1] % 60) * CUPRIORORD);
+void calculCout(int s, int iCout) {
+	int couts = ((tempsOccupPrior % 60) * CUPRIORABSOLU) + ((tempsOccupOrd % 60) * CUPRIORORD);
 
 	int iStations = 0;
 	while (iStations < s)
@@ -257,27 +230,36 @@ void calculCout(int s) {
 		couts += ((TabStations[iStations].tempsOccupation % 60) * CUOCC) + ((TabStations[iStations].tempsInoccupation % 60) * CUINOCC);
 		iStations++;
 	}
-
-	printf_s("%s", "Couts : " + couts);
+	TabCouts[iCout] = couts;
+	printf("\nCouts total pour %d stations : %d\n", s, couts);
 }
 
-void parcourirFiles(int iStations, int iP, int iO, int iOE) {
-	if (TabPrior[iP] != 0) {								//**************************************
+void parcourirFiles(int iStations) {
+	if (TabPrior[0] != 10) {								//**************************************
 		TabStations[iStations].typeClient = PRIOR;				//**************************************
-		TabStations[iStations].dureeService = TabPrior[iP];	// Probleme a gerer pour quand on change de file
-		iP++;
+		TabStations[iStations].dureeService = TabPrior[0];	// Probleme a gerer pour quand on change de file
+		for (int iDec = 0; iDec < MAXTAB-1; iDec++) {
+			TabPrior[iDec] = TabPrior[iDec + 1];
+		}
+		TabPrior[MAXTAB - 1] = 10;
 	}															//Il faut revenir au 1er element de la file
 	else {														//Solutions possibles : 
-		if (TabOrdinaireEjecte[iOE] != 0) {					//Retrier chaque fois la file ou utiliser un indice a incrementer mais indice different pour chaque file
+		if (TabOrdinaireEjecte[0] != 10) {					//Retrier chaque fois la file ou utiliser un indice a incrementer mais indice different pour chaque file
 			TabStations[iStations].typeClient = ORDINAIRE;
-			TabStations[iStations].dureeService = TabPrior[iOE];
-			iOE++;
+			TabStations[iStations].dureeService = TabOrdinaireEjecte[0];
+			for (int iDec = 0; iDec < MAXTAB - 1; iDec++) {
+				TabOrdinaireEjecte[iDec] = TabOrdinaireEjecte[iDec + 1];
+			}
+			TabOrdinaireEjecte[MAXTAB - 1] = 10;
 		}
 		else {
-			if (TabOrdinaire[iO] != 0) {
+			if (TabOrdinaire[0] != 10) {
 				TabStations[iStations].typeClient = ORDINAIRE;
-				TabStations[iStations].dureeService = TabPrior[iO];
-				iO++;
+				TabStations[iStations].dureeService = TabOrdinaire[0];
+				for (int iDec = 0; iDec < MAXTAB - 1; iDec++) {
+					TabOrdinaire[iDec] = TabOrdinaire[iDec + 1];
+				}
+				TabOrdinaire[MAXTAB - 1] = 10;
 			}
 		}
 	}
@@ -285,23 +267,74 @@ void parcourirFiles(int iStations, int iP, int iO, int iOE) {
 
 void VerifEjectionClient(int iStations) {
 	if (TabStations[iStations].typeClient == ORDINAIRE) {
-		//Faire l'ejection du client
+
 		int iF = 0;
-		while (TabOrdinaireEjecte[iF] != 0) {
+		while (TabOrdinaireEjecte[iF] != 10) {
 			iF++;
 		}
 		TabOrdinaireEjecte[iF] = TabStations[iStations].dureeService;
 	}
 }
 
-void ParcoursTabStations(int s, Stations tab[]) {
+void ParcoursTabStations(int s) {
 	int cpt = 0;
 	while (cpt < s) {
 		if (TabStations[cpt].typeClient == VIDE)
 			TabStations[cpt].tempsInoccupation++;
-		else
+		else {
 			TabStations[cpt].tempsOccupation++;
+			if (TabStations[cpt].typeClient == PRIOR) {
+				tempsOccupPrior++;
+			}
+			else {
+				tempsOccupOrd++;
+			}
+		}
 		TabStations[cpt].dureeService--;
+		if (TabStations[cpt].dureeService == 0) {
+			TabStations[cpt].typeClient = VIDE;
+		}
 		cpt++;
 	}
+}
+
+void affichageStations(int s) {
+	printf("\nTableau de stations : \n");
+	for (int i = 0; i < s; i++) {
+		//if (TabStations[i].typeClient != VIDE) {
+			printf("\tType de client a la station %d : %u\n", i,TabStations[i].typeClient);
+			printf("\tDuree de service restante du client a la station %d : %u\n", i, TabStations[i].dureeService);
+		//}
+	}
+	printf("\n\n");
+}
+
+void affichageFilesPrior(void) {
+	printf("\nTableau de files prior : \n");
+	for (int i = 0; i < MAXTAB; i++) {
+		if (TabPrior[i] != 10) {
+			printf("\tDuree de service du client prior %u\n", TabPrior[i]);
+		}
+	}
+	printf("\n\n");
+}
+
+void affichageFilesOrdinaire(void) {
+	printf("\nTableau de files ordinaire : \n");
+	for (int i = 0; i < MAXTAB; i++) {
+		if (TabOrdinaire[i] != 10) {
+			printf("\tDuree de service du client ordinaire %u\n", TabOrdinaire[i]);
+		}
+	}
+	printf("\n\n");
+}
+
+void affichageFilesOrdinaireEject(void) {
+	printf("\nTableau de files ejecte : \n");
+	for (int i = 0; i < MAXTAB; i++) {
+		if (TabOrdinaireEjecte[i] != 10) {
+			printf("\tDuree de service du client ejecte %u\n", TabOrdinaireEjecte[i]);
+		}
+	}
+	printf("\n\n");
 }
